@@ -176,9 +176,29 @@ h2 {
 }
 
 .dashboard-actions {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 12px;
-  justify-items: end;
+  justify-content: flex-end;
+}
+
+.dashboard-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-date {
+  width: 170px;
+  min-height: 40px;
 }
 
 .period-filter {
@@ -228,7 +248,7 @@ h2 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  margin: 18px 0;
+  margin: 16px 0 18px;
 }
 
 .stat-card,
@@ -258,10 +278,19 @@ h2 {
   border-color: rgba(224, 82, 82, 0.35);
 }
 
+.chart-grid,
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.85fr) minmax(320px, 1.15fr);
   gap: 18px;
+}
+
+.chart-grid {
+  grid-template-columns: repeat(2, minmax(280px, 1fr));
+  margin-bottom: 18px;
+}
+
+.content-grid {
+  grid-template-columns: minmax(420px, 1.1fr) minmax(320px, 0.9fr);
 }
 
 .panel {
@@ -331,20 +360,31 @@ h2 {
 }
 
 .legend {
-  display: flex;
-  justify-content: center;
-  gap: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .legend a {
   display: inline-flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   color: var(--muted);
   font-weight: 800;
 }
 
+.legend strong {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+
 .dot {
+  flex: 0 0 auto;
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -356,6 +396,119 @@ h2 {
 
 .expense-dot {
   background: var(--expense);
+}
+
+.line-panel {
+  min-width: 0;
+}
+
+.net-total {
+  color: var(--blue);
+  font-size: 1.35rem;
+}
+
+.line-chart {
+  width: 100%;
+  min-height: 320px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.line-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grid-lines line {
+  stroke: #dfe6f0;
+  stroke-width: 1;
+}
+
+.zero-line {
+  stroke: #64748b;
+  stroke-width: 2;
+}
+
+.bar-series rect {
+  stroke-width: 1;
+  shape-rendering: geometricPrecision;
+  transition: opacity 160ms ease;
+}
+
+.bar-series rect:hover {
+  opacity: 0.72;
+}
+
+.positive-pillar {
+  fill: url("#positivePillarGradient");
+  stroke: #0f7a4a;
+}
+
+.negative-pillar {
+  fill: url("#negativePillarGradient");
+  stroke: #b83232;
+}
+
+.axis-labels text,
+.y-axis-labels text {
+  fill: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  dominant-baseline: middle;
+}
+
+.pillar-value {
+  fill: var(--ink);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.trend-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.trend-summary span {
+  display: grid;
+  gap: 4px;
+  min-height: 62px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.trend-summary strong {
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.trend-dot {
+  display: inline-block;
+  width: 20px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.income-line {
+  background: var(--income);
+}
+
+.expense-line {
+  background: var(--expense);
+}
+
+.balance-line {
+  background: var(--blue);
 }
 
 .recent-list {
@@ -803,10 +956,16 @@ td.price-cell {
   }
 
   .dashboard-actions {
-    justify-items: start;
+    justify-content: flex-start;
+  }
+
+  .dashboard-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .stats-grid,
+  .chart-grid,
   .content-grid,
   .routing-grid,
   .crud-layout {
@@ -850,6 +1009,11 @@ td.price-cell {
     grid-template-columns: 1fr;
   }
 
+  .legend,
+  .trend-summary {
+    grid-template-columns: 1fr;
+  }
+
   .panel-title {
     align-items: flex-start;
     flex-direction: column;
@@ -861,6 +1025,7 @@ td.price-cell {
 
   .dashboard-actions,
   .period-filter,
+  .dashboard-date,
   .primary-action {
     width: 100%;
   }
