@@ -29,19 +29,18 @@
   </header>
 
   <main class="shell">
-    <section class="hero-panel">
+    <section class="dashboard-toolbar" aria-label="Dashboard filters">
       <div>
-        <p class="eyebrow">Overview</p>
-        <h1>Daily money flow at a glance</h1>
-        <p class="hero-copy">Track income and expenses, compare totals, and open each module from the chart or navigation.</p>
+        <p class="eyebrow">Filter</p>
+        <h2>Dashboard view</h2>
       </div>
       <div class="dashboard-actions">
+        <input id="dashboardDate" class="dashboard-date" type="date">
         <div class="period-filter" aria-label="Dashboard period">
           <button class="period-btn active" type="button" data-period="day">Date</button>
           <button class="period-btn" type="button" data-period="week">Week</button>
           <button class="period-btn" type="button" data-period="month">Month</button>
         </div>
-        <a class="primary-action" href="daily_routing.html">Open modules</a>
       </div>
     </section>
 
@@ -64,24 +63,56 @@
       </article>
     </section>
 
-    <section class="content-grid">
+    <section class="chart-grid" aria-label="Income and expense charts">
       <article class="panel chart-panel">
         <div class="panel-title">
           <div>
-            <p class="eyebrow">Diagram</p>
-            <h2>Category split</h2>
+            <p class="eyebrow">Income</p>
+            <h2>Income category split</h2>
           </div>
         </div>
         <div class="donut-wrap">
-          <button id="dashboardDonut" class="donut" aria-label="Open modules diagram"></button>
+          <button id="incomeDonut" class="donut" aria-label="Open income module"></button>
           <div class="donut-center">
-            <span>Total</span>
-            <strong id="chartTotal">₹0</strong>
+            <span>Income</span>
+            <strong id="incomeChartTotal">₹0</strong>
           </div>
         </div>
-        <div class="legend">
-          <a href="income.html"><span class="dot income-dot"></span>Income</a>
-          <a href="expense.html"><span class="dot expense-dot"></span>Expense</a>
+        <div id="incomeLegend" class="legend"></div>
+      </article>
+
+      <article class="panel chart-panel">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">Expense</p>
+            <h2>Expense category split</h2>
+          </div>
+        </div>
+        <div class="donut-wrap">
+          <button id="expenseDonut" class="donut" aria-label="Open expense module"></button>
+          <div class="donut-center">
+            <span>Expense</span>
+            <strong id="expenseChartTotal">₹0</strong>
+          </div>
+        </div>
+        <div id="expenseLegend" class="legend"></div>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel line-panel">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow">Trend</p>
+            <h2>Income vs expense</h2>
+          </div>
+          <strong id="netTrendTotal" class="net-total">₹0</strong>
+        </div>
+        <div id="cashflowChart" class="line-chart" aria-label="Income and expense line chart"></div>
+        <div class="trend-summary">
+          <span><i class="trend-dot income-line"></i>Income <strong id="trendIncomeTotal">₹0</strong></span>
+          <span><i class="trend-dot expense-line"></i>Expense <strong id="trendExpenseTotal">₹0</strong></span>
+          <span><i class="trend-dot balance-line"></i>Balance <strong id="trendBalanceTotal">₹0</strong></span>
         </div>
       </article>
 
