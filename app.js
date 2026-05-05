@@ -19,9 +19,18 @@ const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 let calendarDate = new Date();
 let dashboardPeriod = "day";
+let dashboardDate = toDateValue(new Date());
 
 function formatMoney(value) {
   return money.format(Number(value) || 0);
+}
+
+function formatWholeMoney(value) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
+  }).format(Number(value) || 0);
 }
 
 function normalizeRecord(record) {
@@ -91,9 +100,22 @@ function getTotals(items = records) {
 }
 
 function parseDateValue(value) {
-  const parts = String(value || "").split("-").map(Number);
-  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
-  return new Date(parts[0], parts[1] - 1, parts[2]);
+  const cleanValue = String(value || "").trim();
+  if (!cleanValue) return null;
+
+  const isoMatch = cleanValue.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    return new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3]));
+  }
+
+  const localMatch = cleanValue.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (localMatch) {
+    return new Date(Number(localMatch[3]), Number(localMatch[2]) - 1, Number(localMatch[1]));
+  }
+
+  const parsed = new Date(cleanValue);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
 }
 
 function getWeekStart(date) {
@@ -105,10 +127,10 @@ function getWeekStart(date) {
 
 function isSamePeriod(value, period) {
   const itemDate = parseDateValue(value);
-  if (!itemDate) return false;
+  const selectedDate = parseDateValue(dashboardDate);
+  if (!itemDate || !selectedDate) return false;
 
-  const today = new Date();
-  const current = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const current = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
   const item = new Date(itemDate.getFullYear(), itemDate.getMonth(), itemDate.getDate());
 
   if (period === "week") {
@@ -129,6 +151,179 @@ function getDashboardRecords() {
   return records.filter((item) => isSamePeriod(item.date, dashboardPeriod));
 }
 
+function getCategoryTotals(items) {
+  return categoryNames.map((name) => ({
+    name,
+    color: categoryColors[name],
+    total: items
+      .filter((item) => getCategory(item.description) === name)
+      .reduce((sum, item) => sum + item.price, 0)
+  }));
+}
+
+function renderDonutChart({ donutSelector, legendSelector, totalSelector, items, link }) {
+  const totals = getCategoryTotals(items);
+  const totalAmount = totals.reduce((sum, item) => sum + item.total, 0);
+  const activeTotals = totals.filter((item) => item.total > 0);
+  let cursor = 0;
+  const conicParts = activeTotals.map((item) => {
+    const next = cursor + (item.total / (totalAmount || 1)) * 100;
+    const part = `${item.color} ${cursor}% ${next}%`;
+    cursor = next;
+    return part;
+  });
+
+  const donut = qs(donutSelector);
+  if (donut) {
+    donut.style.background = conicParts.length
+      ? `conic-gradient(${conicParts.join(", ")})`
+      : "conic-gradient(#dfe6f0 0 100%)";
+    donut.onclick = () => {
+      window.location.href = link;
+    };
+  }
+
+  const legend = qs(legendSelector);
+  if (legend) {
+    legend.innerHTML = totals.map((item) => `
+      <a href="${link}">
+        <span class="dot" style="background:${item.color}"></span>${item.name}
+        <strong>${formatMoney(item.total)}</strong>
+      </a>
+    `).join("");
+  }
+
+  setText(totalSelector, formatMoney(totalAmount));
+}
+
+function addDays(date, days) {
+  const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function isSameDate(first, second) {
+  return first.getFullYear() === second.getFullYear()
+    && first.getMonth() === second.getMonth()
+    && first.getDate() === second.getDate();
+}
+
+function getTrendBuckets() {
+  const selectedDate = parseDateValue(dashboardDate) || new Date();
+
+  if (dashboardPeriod === "month") {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    const weeks = [];
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let start = 1; start <= daysInMonth; start += 7) {
+      const end = Math.min(start + 6, daysInMonth);
+      weeks.push({
+        label: `${start}-${end}`,
+        matches: (date) => date.getFullYear() === year
+          && date.getMonth() === month
+          && date.getDate() >= start
+          && date.getDate() <= end
+      });
+    }
+    return weeks;
+  }
+
+  const startDate = dashboardPeriod === "week"
+    ? getWeekStart(selectedDate)
+    : addDays(selectedDate, -6);
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(startDate, index);
+    return {
+      label: dashboardPeriod === "week" ? dayNames[date.getDay()] : `${date.getDate()} ${monthNames[date.getMonth()]}`,
+      matches: (itemDate) => isSameDate(itemDate, date)
+    };
+  });
+}
+
+function renderCashflowChart(items) {
+  const buckets = getTrendBuckets().map((bucket) => {
+    const bucketItems = items.filter((item) => {
+      const itemDate = parseDateValue(item.date);
+      return itemDate && bucket.matches(itemDate);
+    });
+    const totals = getTotals(bucketItems);
+    return {
+      label: bucket.label,
+      income: totals.income,
+      expense: totals.expense,
+      balance: totals.balance
+    };
+  });
+
+  const width = 760;
+  const height = 320;
+  const padding = 50;
+  const leftPadding = 82;
+  const chartHeight = height - padding * 2;
+  const chartWidth = width - leftPadding - padding;
+  const zeroY = height - padding;
+  const bucketWidth = chartWidth / buckets.length;
+  const barWidth = Math.min(24, Math.max(10, bucketWidth / 5));
+  const maxAmount = Math.max(1, ...buckets.flatMap((item) => [item.income, item.expense]));
+  const yForAmount = (amount) => zeroY - (amount / maxAmount) * chartHeight;
+
+  const getBar = (amount, index, offset, className, isExpense = false) => {
+    if (!amount) return "";
+    const x = leftPadding + index * bucketWidth + bucketWidth / 2 + offset - barWidth / 2;
+    const y = yForAmount(amount);
+    const barHeight = Math.max(2, zeroY - y);
+    const labelY = Math.max(18, y - 10);
+    const label = isExpense ? `-${formatWholeMoney(amount)}` : formatWholeMoney(amount);
+    return `
+      <rect class="${className}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barWidth.toFixed(1)}" height="${barHeight.toFixed(1)}" rx="4"></rect>
+      <text class="pillar-value" x="${(x + barWidth / 2).toFixed(1)}" y="${labelY.toFixed(1)}" text-anchor="middle">${label}</text>
+    `;
+  };
+
+  const chart = qs("#cashflowChart");
+  if (!chart) return;
+
+  chart.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Net cash flow red and green pillar chart">
+      <defs>
+        <linearGradient id="positivePillarGradient" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#37c878"></stop>
+          <stop offset="100%" stop-color="#128b56"></stop>
+        </linearGradient>
+        <linearGradient id="negativePillarGradient" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stop-color="#f37a7a"></stop>
+          <stop offset="100%" stop-color="#d33f3f"></stop>
+        </linearGradient>
+      </defs>
+      <g class="grid-lines">
+        <line x1="${leftPadding}" y1="${padding}" x2="${width - padding}" y2="${padding}"></line>
+        <line x1="${leftPadding}" y1="${padding + chartHeight / 3}" x2="${width - padding}" y2="${padding + chartHeight / 3}"></line>
+        <line x1="${leftPadding}" y1="${padding + chartHeight * 0.66}" x2="${width - padding}" y2="${padding + chartHeight * 0.66}"></line>
+        <line x1="${leftPadding}" y1="${height - padding}" x2="${width - padding}" y2="${height - padding}"></line>
+      </g>
+      <line class="zero-line" x1="${leftPadding}" y1="${zeroY.toFixed(1)}" x2="${width - padding}" y2="${zeroY.toFixed(1)}"></line>
+      <g class="y-axis-labels">
+        <text x="${leftPadding - 14}" y="${padding + 4}" text-anchor="end">${formatMoney(maxAmount)}</text>
+        <text x="${leftPadding - 14}" y="${zeroY + 4}" text-anchor="end">₹0</text>
+      </g>
+      <g class="bar-series">
+        ${buckets.map((item, index) => [
+          getBar(item.income, index, -barWidth / 2 - 3, "positive-pillar"),
+          getBar(item.expense, index, barWidth / 2 + 3, "negative-pillar", true)
+        ].join("")).join("")}
+      </g>
+      <g class="axis-labels">
+        ${buckets.map((item, index) => {
+          const x = leftPadding + index * bucketWidth + bucketWidth / 2;
+          return `<text x="${x}" y="${height - 14}" text-anchor="middle">${escapeHtml(item.label)}</text>`;
+        }).join("")}
+      </g>
+    </svg>
+  `;
+}
+
 function setText(selector, value) {
   const element = qs(selector);
   if (element) element.textContent = value;
@@ -141,41 +336,26 @@ function renderDashboard() {
   setText("#totalExpense", formatMoney(totals.expense));
   setText("#totalBalance", formatMoney(totals.balance));
   setText("#recordCount", filteredRecords.length);
-  setText("#chartTotal", formatMoney(totals.total));
+  setText("#trendIncomeTotal", formatMoney(totals.income));
+  setText("#trendExpenseTotal", formatMoney(totals.expense));
+  setText("#trendBalanceTotal", formatMoney(totals.balance));
+  setText("#netTrendTotal", formatMoney(totals.balance));
 
-  const categoryTotals = categoryNames.map((name) => ({
-    name,
-    color: categoryColors[name],
-    total: filteredRecords
-      .filter((item) => getCategory(item.description) === name)
-      .reduce((sum, item) => sum + item.price, 0)
-  }));
-  let cursor = 0;
-  const activeCategories = categoryTotals.filter((item) => item.total > 0);
-  const conicParts = activeCategories.map((item) => {
-    const next = cursor + (item.total / (totals.total || 1)) * 100;
-    const part = `${item.color} ${cursor}% ${next}%`;
-    cursor = next;
-    return part;
+  renderDonutChart({
+    donutSelector: "#incomeDonut",
+    legendSelector: "#incomeLegend",
+    totalSelector: "#incomeChartTotal",
+    items: filteredRecords.filter((item) => item.type === "income"),
+    link: "income.html"
   });
-  const donut = qs("#dashboardDonut");
-  if (donut) {
-    donut.style.background = conicParts.length
-      ? `conic-gradient(${conicParts.join(", ")})`
-      : `conic-gradient(${categoryColors.Food} 0 34%, ${categoryColors.Hardware} 34% 67%, ${categoryColors.Other} 67% 100%)`;
-    donut.onclick = () => {
-      window.location.href = "daily_routing.html";
-    };
-  }
-
-  const legend = qs(".legend");
-  if (legend) {
-    legend.innerHTML = categoryTotals.map((item) => `
-      <a href="daily_routing.html">
-        <span class="dot" style="background:${item.color}"></span>${item.name}
-      </a>
-    `).join("");
-  }
+  renderDonutChart({
+    donutSelector: "#expenseDonut",
+    legendSelector: "#expenseLegend",
+    totalSelector: "#expenseChartTotal",
+    items: filteredRecords.filter((item) => item.type === "expense"),
+    link: "expense.html"
+  });
+  renderCashflowChart(records);
 
   const recentList = qs("#recentList");
   if (!recentList) return;
@@ -394,9 +574,7 @@ async function saveEntry(event) {
       await request("", { method: "POST", body: JSON.stringify(payload) });
       showToast(`${page} added`);
     }
-    resetForm();
-    await loadRecords();
-    renderCrud();
+    window.location.href = "index.html";
   } catch (error) {
     showToast("Save failed");
   }
@@ -462,6 +640,15 @@ function bindCrudEvents() {
 }
 
 function bindDashboardEvents() {
+  const dateInput = qs("#dashboardDate");
+  if (dateInput) {
+    dateInput.value = dashboardDate;
+    dateInput.addEventListener("change", () => {
+      dashboardDate = dateInput.value || toDateValue(new Date());
+      renderDashboard();
+    });
+  }
+
   document.querySelectorAll(".period-btn").forEach((button) => {
     button.addEventListener("click", () => {
       dashboardPeriod = button.dataset.period || "day";
