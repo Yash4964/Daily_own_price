@@ -60,6 +60,13 @@ a {
   background: #162033;
   color: #fff;
   font-weight: 800;
+  overflow: hidden;
+}
+
+.brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .brand strong,
@@ -99,6 +106,65 @@ a {
   border-color: var(--line);
   background: #fff;
   color: var(--ink);
+}
+
+.account-menu {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-chip,
+.account-action,
+.logout-btn,
+.dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 800;
+}
+
+.account-action,
+.logout-btn,
+.dialog-close {
+  cursor: pointer;
+}
+
+.account-chip {
+  gap: 8px;
+  padding: 0 11px 0 7px;
+}
+
+.account-chip span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.8rem;
+}
+
+.logout-btn {
+  padding: 0 12px;
+  color: var(--expense);
+}
+
+.account-action {
+  padding: 0 12px;
+  color: var(--blue);
+}
+
+.dialog-close {
+  width: 38px;
+  padding: 0;
 }
 
 .shell {
@@ -706,6 +772,46 @@ select:focus,
   outline: 3px solid rgba(37, 99, 235, 0.14);
 }
 
+.password-control {
+  position: relative;
+  display: block;
+}
+
+.password-control input {
+  padding-right: 54px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  display: grid;
+  width: 36px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fbff;
+  color: var(--blue);
+  cursor: pointer;
+}
+
+.password-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.password-toggle:focus {
+  border-color: var(--blue);
+  outline: 3px solid rgba(37, 99, 235, 0.14);
+}
+
 .custom-select,
 .date-control {
   position: relative;
@@ -947,6 +1053,108 @@ td.price-cell {
   opacity: 1;
 }
 
+.login-page {
+  display: grid;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(37, 99, 235, 0.12), transparent 30%),
+    radial-gradient(circle at 82% 76%, rgba(16, 166, 106, 0.12), transparent 28%),
+    var(--bg);
+}
+
+.login-shell {
+  display: grid;
+  width: min(440px, calc(100% - 32px));
+  margin: auto;
+  padding: 24px 0;
+}
+
+.login-panel {
+  width: 100%;
+  padding: clamp(24px, 6vw, 34px);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 64px rgba(23, 38, 67, 0.16);
+}
+
+.login-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.login-card-head strong,
+.login-card-head small {
+  display: block;
+}
+
+.login-card-head small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.login-logo {
+  width: 48px;
+  height: 48px;
+}
+
+.login-title {
+  margin-bottom: 24px;
+}
+
+.login-title h1 {
+  margin-bottom: 8px;
+  font-size: 2.3rem;
+  line-height: 1.05;
+}
+
+.login-title p:last-child {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.login-note {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.primary-action:disabled {
+  cursor: wait;
+  opacity: 0.68;
+}
+
+.auth-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(22, 32, 51, 0.44);
+  backdrop-filter: blur(8px);
+}
+
+.auth-dialog.open {
+  display: flex;
+}
+
+.auth-dialog-panel {
+  width: min(420px, 100%);
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(10, 20, 40, 0.28);
+}
+
 @media (max-width: 900px) {
   .topbar,
   .hero-panel,
@@ -956,6 +1164,15 @@ td.price-cell {
   }
 
   .dashboard-actions {
+    justify-content: flex-start;
+  }
+
+  .account-menu {
+    width: 100%;
+  }
+
+  .account-chip {
+    flex: 1;
     justify-content: flex-start;
   }
 
@@ -970,6 +1187,10 @@ td.price-cell {
   .routing-grid,
   .crud-layout {
     grid-template-columns: 1fr;
+  }
+
+  .login-shell {
+    width: min(440px, calc(100% - 24px));
   }
 
   .form-panel {
@@ -1028,6 +1249,14 @@ td.price-cell {
   .dashboard-date,
   .primary-action {
     width: 100%;
+  }
+
+  .login-panel {
+    padding: 22px;
+  }
+
+  .login-title h1 {
+    font-size: 2rem;
   }
 
   .period-btn {

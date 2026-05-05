@@ -1,4 +1,6 @@
 const API_URL = "https://69f894f4f7044aa0103e15a0.mockapi.io/Daily_Price";
+const LOGIN_API_URL = "https://69f894f4f7044aa0103e15a0.mockapi.io/login";
+const AUTH_STORAGE_KEY = "dailyPriceUser";
 const page = document.body.dataset.page;
 let records = [];
 
@@ -17,6 +19,20 @@ const categoryColors = {
 const categoryNames = Object.keys(categoryColors);
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const eyeIcon = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+    <circle cx="12" cy="12" r="3"></circle>
+  </svg>
+`;
+const eyeOffIcon = `
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 3l18 18"></path>
+    <path d="M10.7 5.2A10.7 10.7 0 0 1 12 5c6 0 9.5 7 9.5 7a18 18 0 0 1-3.2 4.1"></path>
+    <path d="M6.6 6.8A17 17 0 0 0 2.5 12S6 19 12 19a9.8 9.8 0 0 0 3.4-.6"></path>
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path>
+  </svg>
+`;
 let calendarDate = new Date();
 let dashboardPeriod = "day";
 let dashboardDate = toDateValue(new Date());
@@ -71,6 +87,231 @@ async function request(endpoint = "", options = {}) {
   }
 
   return response.json();
+}
+
+async function authRequest(endpoint = "", options = {}) {
+  const response = await fetch(`${LOGIN_API_URL}${endpoint}`, {
+    headers: { "Content-Type": "application/json" },
+    ...options
+  });
+
+  if (!response.ok) {
+    throw new Error(`Login request failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+function getSessionUser() {
+  try {
+    const user = JSON.parse(localStorage.getItem(AUTH_STORAGE_KEY) || "null");
+    return user?.id && user?.username ? user : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+function setSessionUser(user) {
+  localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({
+    id: user.id,
+    username: user.username
+  }));
+}
+
+function clearSessionUser() {
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+}
+
+function redirectToLogin() {
+  const target = encodeURIComponent(window.location.pathname.split("/").pop() || "index.html");
+  window.location.href = `login.html?next=${target}`;
+}
+
+function requireLogin() {
+  if (page === "login") return true;
+  if (getSessionUser()) return true;
+  redirectToLogin();
+  return false;
+}
+
+function getLoginRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const next = params.get("next");
+  return next && !next.includes("/") && next.endsWith(".html") ? next : "index.html";
+}
+
+function injectAccountControls() {
+  const topbar = qs(".topbar");
+  if (!topbar || page === "login") return;
+  const user = getSessionUser();
+  if (!user) return;
+
+  const account = document.createElement("div");
+  account.className = "account-menu";
+  account.innerHTML = `
+    <span class="account-chip">
+      <span>${escapeHtml(user.username.slice(0, 1).toUpperCase())}</span>
+      <strong>${escapeHtml(user.username)}</strong>
+    </span>
+    <button class="account-action" type="button" id="changePasswordBtn">Change password</button>
+    <button class="logout-btn" type="button" id="logoutBtn">Logout</button>
+  `;
+  topbar.append(account);
+
+  qs("#logoutBtn")?.addEventListener("click", () => {
+    clearSessionUser();
+    window.location.href = "login.html";
+  });
+  qs("#changePasswordBtn")?.addEventListener("click", openPasswordDialog);
+}
+
+function openPasswordDialog() {
+  if (qs("#passwordDialog")) {
+    qs("#passwordDialog").classList.add("open");
+    qs("#currentPassword")?.focus();
+    return;
+  }
+
+  const dialog = document.createElement("div");
+  dialog.id = "passwordDialog";
+  dialog.className = "auth-dialog open";
+  dialog.innerHTML = `
+    <div class="auth-dialog-panel" role="dialog" aria-modal="true" aria-labelledby="passwordDialogTitle">
+      <div class="panel-title">
+        <div>
+          <p class="eyebrow">Account</p>
+          <h2 id="passwordDialogTitle">Change password</h2>
+        </div>
+        <button class="dialog-close" type="button" id="closePasswordDialog">x</button>
+      </div>
+      <form id="passwordForm">
+        <label>
+          Current password
+          <span class="password-control">
+            <input id="currentPassword" type="password" autocomplete="current-password" required>
+            <button class="password-toggle" type="button" data-toggle-password="currentPassword" aria-label="Show password">${eyeIcon}</button>
+          </span>
+        </label>
+        <label>
+          New password
+          <span class="password-control">
+            <input id="newPassword" type="password" autocomplete="new-password" minlength="3" required>
+            <button class="password-toggle" type="button" data-toggle-password="newPassword" aria-label="Show password">${eyeIcon}</button>
+          </span>
+        </label>
+        <label>
+          Confirm password
+          <span class="password-control">
+            <input id="confirmPassword" type="password" autocomplete="new-password" minlength="3" required>
+            <button class="password-toggle" type="button" data-toggle-password="confirmPassword" aria-label="Show password">${eyeIcon}</button>
+          </span>
+        </label>
+        <button class="primary-action full" type="submit">Update password</button>
+      </form>
+    </div>
+  `;
+  document.body.append(dialog);
+
+  qs("#closePasswordDialog")?.addEventListener("click", closePasswordDialog);
+  dialog.addEventListener("click", (event) => {
+    if (event.target === dialog) closePasswordDialog();
+  });
+  qs("#passwordForm")?.addEventListener("submit", changePassword);
+  bindPasswordToggles(dialog);
+  qs("#currentPassword")?.focus();
+}
+
+function closePasswordDialog() {
+  qs("#passwordDialog")?.classList.remove("open");
+}
+
+async function changePassword(event) {
+  event.preventDefault();
+  const user = getSessionUser();
+  const currentPassword = qs("#currentPassword").value;
+  const newPassword = qs("#newPassword").value;
+  const confirmPassword = qs("#confirmPassword").value;
+
+  if (!user) {
+    redirectToLogin();
+    return;
+  }
+  if (newPassword !== confirmPassword) {
+    showToast("New passwords do not match");
+    return;
+  }
+
+  try {
+    const account = await authRequest(`/${user.id}`);
+    if (account.password !== currentPassword) {
+      showToast("Current password is wrong");
+      return;
+    }
+    const updated = await authRequest(`/${user.id}`, {
+      method: "PUT",
+      body: JSON.stringify({ ...account, password: newPassword })
+    });
+    setSessionUser(updated);
+    closePasswordDialog();
+    showToast("Password changed");
+  } catch (error) {
+    showToast("Password could not change");
+  }
+}
+
+async function loginUser(event) {
+  event.preventDefault();
+  const email = qs("#loginEmail").value.trim();
+  const password = qs("#loginPassword").value;
+  const submitButton = qs("#loginSubmit");
+
+  if (!email || !password) {
+    showToast("Enter email and password");
+    return;
+  }
+
+  submitButton.disabled = true;
+  submitButton.textContent = "Checking...";
+
+  try {
+    const users = await authRequest();
+    const user = users.find((item) => item.username === email && item.password === password);
+    if (!user) {
+      showToast("Invalid username or password");
+      return;
+    }
+    setSessionUser(user);
+    window.location.href = getLoginRedirect();
+  } catch (error) {
+    showToast("Login API could not load");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = "Login";
+  }
+}
+
+function bindLoginEvents() {
+  if (getSessionUser()) {
+    window.location.href = getLoginRedirect();
+    return;
+  }
+  qs("#loginForm")?.addEventListener("submit", loginUser);
+  bindPasswordToggles(document);
+}
+
+function bindPasswordToggles(scope = document) {
+  scope.querySelectorAll("[data-toggle-password]").forEach((button) => {
+    if (button.dataset.bound === "true") return;
+    button.dataset.bound = "true";
+    button.addEventListener("click", () => {
+      const input = qs(`#${button.dataset.togglePassword}`);
+      if (!input) return;
+      const isHidden = input.type === "password";
+      input.type = isHidden ? "text" : "password";
+      button.innerHTML = isHidden ? eyeOffIcon : eyeIcon;
+      button.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    });
+  });
 }
 
 async function loadRecords() {
@@ -661,6 +902,13 @@ function bindDashboardEvents() {
 }
 
 async function init() {
+  if (page === "login") {
+    bindLoginEvents();
+    return;
+  }
+
+  if (!requireLogin()) return;
+  injectAccountControls();
   await loadRecords();
 
   if (page === "dashboard") {
