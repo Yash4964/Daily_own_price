@@ -135,9 +135,7 @@ function requireLogin() {
 }
 
 function getLoginRedirect() {
-  const params = new URLSearchParams(window.location.search);
-  const next = params.get("next");
-  return next && !next.includes("/") && next.endsWith(".html") ? next : "index.html";
+  return "index.html";
 }
 
 function injectAccountControls() {
@@ -390,6 +388,65 @@ function isSamePeriod(value, period) {
 
 function getDashboardRecords() {
   return records.filter((item) => isSamePeriod(item.date, dashboardPeriod));
+}
+
+function escapeCsvValue(value) {
+  const text = String(value ?? "");
+  return /[",\n\r]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+}
+
+function getExportFileName() {
+  const periodNames = {
+    day: "Daily",
+    week: "Weekly",
+    month: "Monthly"
+  };
+  return `OMM-${periodNames[dashboardPeriod] || "Daily"}.csv`;
+}
+
+function exportDashboardRecords() {
+  const filteredRecords = getDashboardRecords();
+  if (!filteredRecords.length) {
+    showToast("No records to export");
+    return;
+  }
+
+  const totals = getTotals(filteredRecords);
+  const rows = [
+    ["Dashboard Export"],
+    ["Period", dashboardPeriod],
+    ["Date", dashboardDate],
+    ["Income", totals.income],
+    ["Expense", totals.expense],
+    ["Balance", totals.balance],
+    [],
+    ["Type", "Description", "Category", "Date", "Person", "Price"]
+  ];
+
+  filteredRecords.forEach((item) => {
+    rows.push([
+      item.type,
+      item.description,
+      getCategory(item.description),
+      item.date,
+      item.person || "",
+      item.price
+    ]);
+  });
+
+  const csv = rows
+    .map((row) => row.map(escapeCsvValue).join(","))
+    .join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = getExportFileName();
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  showToast("Dashboard exported");
 }
 
 function getCategoryTotals(items) {
@@ -881,6 +938,8 @@ function bindCrudEvents() {
 }
 
 function bindDashboardEvents() {
+  qs("#exportDashboardBtn")?.addEventListener("click", exportDashboardRecords);
+
   const dateInput = qs("#dashboardDate");
   if (dateInput) {
     dateInput.value = dashboardDate;
